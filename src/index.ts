@@ -2,7 +2,17 @@ require("dotenv").config()
 const { Bot } = require("grammy")
 import { GrammyError, HttpError } from "grammy"
 import { run } from "@grammyjs/runner"
-import { sleep, usernameRule, formatRule, askTrustRule, botReplyGenerator } from "./helpers"
+import {
+  sleep,
+  usernameRule,
+  formatRule,
+  askTrustRule,
+  botReplyGenerator,
+  reserveRule,
+  isCorrectOffer,
+  isIncludesTrust,
+  isIncludesReserve
+} from "./helpers"
 import { rulesType, ruleType } from "./types"
 
 if (process.env.BOT_TOKEN == null) throw Error("BOT_TOKEN is missing.")
@@ -20,13 +30,17 @@ export const bot = new Bot(`${process.env.BOT_TOKEN}`, {
 
 bot.on("message:text", async (ctx: any) => {
   try {
+    await bot.api.deleteWebhook({ drop_pending_updates: true })
+
     const rulesBroken: rulesType = {
       username: { value: false, content: usernameRule },
-      format: { value: false, content: formatRule },
-      askTrust: { value: false, content: askTrustRule }
+      askTrust: { value: false, content: askTrustRule },
+      reserve: { value: false, content: reserveRule },
+      format: { value: false, content: formatRule }
     }
 
-    const text: String = ctx.message.text
+    const text: string = ctx.message.text
+    const isOrphan: boolean = ctx.message.reply_to_message === undefined
 
     const user = await ctx.getAuthor()
 
@@ -42,30 +56,15 @@ bot.on("message:text", async (ctx: any) => {
       rulesBroken["username"].value = true
     }
 
-    if (
-      ctx.message.reply_to_message === undefined &&
-      (!text.includes("عملة") ||
-        !text.includes("كمية") ||
-        !text.includes("سعر") ||
-        !text.includes("دفع") ||
-        (!text.startsWith("🟢") && !text.startsWith("🔴")))
-    ) {
+    if (isOrphan && !isCorrectOffer(text) && isIncludesReserve(text)) {
+      rulesBroken["reserve"].value = true
+    }
+
+    if (isOrphan && !isCorrectOffer(text)) {
       rulesBroken["format"].value = true
     }
 
-    if (
-      (text.includes("توثيق") ||
-        text.includes("يوثق") ||
-        text.includes("وثق") ||
-        text.includes("ثقة")) &&
-      !(
-        text.includes("حجز") ||
-        text.includes("محجوز") ||
-        text.toUpperCase().includes("HJZ") ||
-        text.toUpperCase().includes("HJAZ") ||
-        text.toUpperCase().includes("HAZJ")
-      )
-    ) {
+    if (isIncludesTrust(text) && !isIncludesReserve(text)) {
       rulesBroken["askTrust"].value = true
     }
 
