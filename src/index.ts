@@ -1,5 +1,5 @@
 require("dotenv").config()
-const { Bot } = require("grammy")
+import { Bot } from "grammy"
 import { GrammyError, HttpError } from "grammy"
 import { run } from "@grammyjs/runner"
 import {
@@ -28,10 +28,13 @@ export const bot = new Bot(`${process.env.BOT_TOKEN}`, {
   }
 })
 
-bot.on("message:text", async (ctx: any) => {
-  try {
-    await bot.api.deleteWebhook({ drop_pending_updates: true })
+// storage
+;(async function () {
+  await bot.api.deleteWebhook({ drop_pending_updates: true })
+})()
 
+bot.on("message:text", async (ctx) => {
+  try {
     const rulesBroken: rulesType = {
       username: { value: false, content: usernameRule },
       askTrust: { value: false, content: askTrustRule },
@@ -92,7 +95,7 @@ bot.on("message:text", async (ctx: any) => {
   }
 })
 
-bot.catch((err: any) => {
+bot.catch((err) => {
   const ctx = err.ctx
   console.error(`Error while handling update ${ctx.update.update_id}:`)
   const e = err.error
@@ -105,5 +108,4 @@ bot.catch((err: any) => {
   }
 })
 
-// bot.start({ drop_pending_updates: true })
 run(bot)

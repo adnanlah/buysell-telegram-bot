@@ -35,7 +35,7 @@ export const botReplyGenerator = (rulesBrokenFiltered: ruleType[]): string => {
 
 ${rulesBrokenFiltered.map((rule) => rule.content).join("\n\n")}
 
-<i>لأي استفسارات انظم لمجموعة التوثيق والنقاشات: https://t.me/+1dS6r91r0hYzZWZk</i>`
+<i>- لأي استفسارات انظم لمجموعة التوثيق والنقاشات: https://t.me/+1dS6r91r0hYzZWZk</i>`
 }
 
 export const usernameRule = `❌ وضع الاسم واللقب واليوزرنيم (المعرف).`
