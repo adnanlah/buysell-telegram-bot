@@ -10,7 +10,7 @@ export const askTrustRule = `❌ التوثيقات تكون في مجموعة �
 
 export const reserveRule = `❌ يجب أن يكون الحجز ردًا على العرض نفسه.`
 
-export const consistentRule = `🔴 بيع او 🟢 شراء؟ 🤔😅`
+export const consistentRule = `🟢 شراء أو 🔴 بيع؟ 🤔😅`
 
 export const formatRule = `❌ احترام النموذج (اضغط على النص 👇 لنسخه):
 <code>
