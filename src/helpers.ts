@@ -32,7 +32,8 @@ export const processInconsistency = (text: string): boolean => {
     text.startsWith("🟢 بيع") ||
     text.startsWith("🟢بيع") ||
     text.startsWith("🔴 شراء") ||
-    text.startsWith("🔴شراء")
+    text.startsWith("🔴شراء") ||
+    text.startsWith("🟢 شراء / 🔴 بيع")
   )
 }
 
