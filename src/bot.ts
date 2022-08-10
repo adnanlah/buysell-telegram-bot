@@ -1,28 +1,19 @@
 import { Bot, Context, session, SessionFlavor } from "grammy"
 import { sequentialize } from "@grammyjs/runner"
 import { GrammyError, HttpError } from "grammy"
-import { sleep, isCorrectOffer, isIncludesTrust, isIncludesReserve } from "./helpers"
-import {
-  usernameRule,
-  formatRule,
-  askTrustRule,
-  botReplyGenerator,
-  reserveRule,
-  pleaseJoin
-} from "./dialog"
-import { rulesType, ruleType } from "./types"
-
-if (process.env.BOT_TOKEN == null) throw Error("BOT_TOKEN is missing.")
+import { processRules } from "./helpers"
+import { botReplyGenerator, pleaseJoin } from "./dialog"
+import { ruleType } from "./types"
 
 interface SessionData {
-  goodMessage: number
+  acceptedMessages: number
 }
 
 type MyContext = Context & SessionFlavor<SessionData>
 
 // Install session middleware, and define the initial session value.
 function initial(): SessionData {
-  return { goodMessage: 0 }
+  return { acceptedMessages: 0 }
 }
 
 // Build a unique identifier for the `Context` object.
@@ -30,6 +21,7 @@ function getSessionKey(ctx: Context) {
   return ctx.chat?.id.toString()
 }
 
+if (process.env.BOT_TOKEN == null) throw Error("BOT_TOKEN is missing.")
 export const bot = new Bot<MyContext>(`${process.env.BOT_TOKEN}`, {
   botInfo: {
     id: 5556548689,
@@ -48,15 +40,8 @@ bot.use(session({ initial }))
 
 bot.on("message:text", async (ctx) => {
   try {
-    const count = ctx.session.goodMessage
+    const count = ctx.session.acceptedMessages
     console.log({ count })
-
-    const rulesBroken: rulesType = {
-      username: { value: false, content: usernameRule },
-      askTrust: { value: false, content: askTrustRule },
-      reserve: { value: false, content: reserveRule },
-      format: { value: false, content: formatRule }
-    }
 
     const text: string = ctx.message.text
     const isOrphan: boolean = ctx.message.reply_to_message === undefined
@@ -71,21 +56,7 @@ bot.on("message:text", async (ctx) => {
       return
     }
 
-    if (ctx.from.username === undefined) {
-      rulesBroken["username"].value = true
-    }
-
-    if (isOrphan && !isCorrectOffer(text) && isIncludesReserve(text)) {
-      rulesBroken["reserve"].value = true
-    }
-
-    if (isOrphan && !isCorrectOffer(text)) {
-      rulesBroken["format"].value = true
-    }
-
-    if (isIncludesTrust(text) && !isIncludesReserve(text)) {
-      rulesBroken["askTrust"].value = true
-    }
+    const rulesBroken = processRules(isOrphan, text, ctx.from.username)
 
     const rulesBrokenFiltered: ruleType[] = Object.values(rulesBroken).filter(
       (rule) => rule.value === true
@@ -102,19 +73,33 @@ bot.on("message:text", async (ctx) => {
         disable_web_page_preview: true
       })
 
-      await sleep(3000 + rulesBrokenFiltered.length * 2000)
-      await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
-      if (count < 21) {
-        await bot.api.deleteMessage(ctx.msg.chat.id, botReplyMessage.message_id)
+      const delay = 3500 + rulesBrokenFiltered.length * 2500
+
+      if (count < 3) {
+        setTimeout(async () => {
+          try {
+            await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
+            await bot.api.deleteMessage(ctx.msg.chat.id, botReplyMessage.message_id)
+          } catch (err: any) {
+            console.log("Oops! Error happened trying to delete messages.", err.message)
+          }
+        }, delay)
       } else {
-        ctx.session.goodMessage = 0
-        await bot.api.editMessageText(ctx.msg.chat.id, botReplyMessage.message_id, pleaseJoin, {
-          parse_mode: "HTML",
-          disable_web_page_preview: true
-        })
+        ctx.session.acceptedMessages = 0
+        setTimeout(async () => {
+          try {
+            await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
+            await bot.api.editMessageText(ctx.msg.chat.id, botReplyMessage.message_id, pleaseJoin, {
+              parse_mode: "HTML",
+              disable_web_page_preview: true
+            })
+          } catch (err: any) {
+            console.log("Oops! Error happened trying to delete messages.", err.message)
+          }
+        }, delay)
       }
     } else {
-      ctx.session.goodMessage++
+      ctx.session.acceptedMessages++
     }
   } catch (err: any) {
     throw new Error(err)
