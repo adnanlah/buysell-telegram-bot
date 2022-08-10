@@ -1,11 +1,36 @@
-import { Bot } from "grammy"
+import { Bot, Context, session, SessionFlavor } from "grammy"
+import { sequentialize } from "@grammyjs/runner"
 import { GrammyError, HttpError } from "grammy"
 import { sleep, isCorrectOffer, isIncludesTrust, isIncludesReserve } from "./helpers"
-import { usernameRule, formatRule, askTrustRule, botReplyGenerator, reserveRule } from "./dialog"
+import {
+  usernameRule,
+  formatRule,
+  askTrustRule,
+  botReplyGenerator,
+  reserveRule,
+  pleaseJoin
+} from "./dialog"
 import { rulesType, ruleType } from "./types"
 
 if (process.env.BOT_TOKEN == null) throw Error("BOT_TOKEN is missing.")
-export const bot = new Bot(`${process.env.BOT_TOKEN}`, {
+
+interface SessionData {
+  goodMessage: number
+}
+
+type MyContext = Context & SessionFlavor<SessionData>
+
+// Install session middleware, and define the initial session value.
+function initial(): SessionData {
+  return { goodMessage: 0 }
+}
+
+// Build a unique identifier for the `Context` object.
+function getSessionKey(ctx: Context) {
+  return ctx.chat?.id.toString()
+}
+
+export const bot = new Bot<MyContext>(`${process.env.BOT_TOKEN}`, {
   botInfo: {
     id: 5556548689,
     is_bot: true,
@@ -17,8 +42,15 @@ export const bot = new Bot(`${process.env.BOT_TOKEN}`, {
   }
 })
 
+// Sequentialize before accessing session data!
+bot.use(sequentialize(getSessionKey))
+bot.use(session({ initial }))
+
 bot.on("message:text", async (ctx) => {
   try {
+    const count = ctx.session.goodMessage
+    console.log({ count })
+
     const rulesBroken: rulesType = {
       username: { value: false, content: usernameRule },
       askTrust: { value: false, content: askTrustRule },
@@ -71,8 +103,18 @@ bot.on("message:text", async (ctx) => {
       })
 
       await sleep(3000 + rulesBrokenFiltered.length * 2000)
-      await bot.api.deleteMessage(ctx.msg.chat.id, botReplyMessage.message_id)
       await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
+      if (count < 21) {
+        await bot.api.deleteMessage(ctx.msg.chat.id, botReplyMessage.message_id)
+      } else {
+        ctx.session.goodMessage = 0
+        await bot.api.editMessageText(ctx.msg.chat.id, botReplyMessage.message_id, pleaseJoin, {
+          parse_mode: "HTML",
+          disable_web_page_preview: true
+        })
+      }
+    } else {
+      ctx.session.goodMessage++
     }
   } catch (err: any) {
     throw new Error(err)
