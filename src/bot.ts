@@ -2,7 +2,7 @@ import { Bot, Context, session, SessionFlavor } from "grammy"
 import { sequentialize } from "@grammyjs/runner"
 import { GrammyError, HttpError } from "grammy"
 import { processRules } from "./helpers"
-import { botReplyGenerator, pleaseJoin } from "./dialog"
+import { noticeGenerator, noticeGeneratorNotImportant, pleaseJoin } from "./dialog"
 import { ruleType } from "./types"
 
 interface SessionData {
@@ -59,11 +59,11 @@ bot.on("message:text", async (ctx) => {
     const rulesBroken = processRules(isOrphan, text, ctx.from.username)
 
     const rulesBrokenFiltered: ruleType[] = Object.values(rulesBroken).filter(
-      (rule) => rule.value === true
+      (rule) => rule.value === true && rule.important === true
     )
 
     if (rulesBrokenFiltered.length > 0) {
-      const botReplyContent = botReplyGenerator(rulesBrokenFiltered)
+      const botReplyContent = noticeGenerator(rulesBrokenFiltered)
       const botReplyMessage = await ctx.reply(botReplyContent, {
         reply_to_message_id: ctx.msg.message_id,
         parse_mode: "HTML",
@@ -100,6 +100,20 @@ bot.on("message:text", async (ctx) => {
       }
     } else {
       ctx.session.acceptedMessages++
+      const notImportantRulesBrokenFiltered: ruleType[] = Object.values(rulesBroken).filter(
+        (rule) => rule.value === true && rule.important === false
+      )
+      if (notImportantRulesBrokenFiltered.length > 0) {
+        const botReplyContent = noticeGeneratorNotImportant(notImportantRulesBrokenFiltered)
+        await ctx.reply(botReplyContent, {
+          reply_to_message_id: ctx.msg.message_id,
+          parse_mode: "HTML",
+          disable_notification: true,
+          allow_sending_without_reply: false,
+          protect_content: true,
+          disable_web_page_preview: true
+        })
+      }
     }
   } catch (err: any) {
     throw new Error(err)

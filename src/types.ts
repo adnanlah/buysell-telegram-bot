@@ -1,6 +1,7 @@
 export interface ruleType {
   value: boolean
   content: string
+  important: boolean
 }
 
 export interface rulesType {
@@ -8,4 +9,5 @@ export interface rulesType {
   format: ruleType
   askTrust: ruleType
   reserve: ruleType
+  consistent: ruleType
 }
