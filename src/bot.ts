@@ -75,7 +75,7 @@ bot.on("message:text", async (ctx) => {
 
       const delay = 3500 + rulesBrokenFiltered.length * 2500
 
-      if (count < 3) {
+      if (count < 15) {
         setTimeout(async () => {
           try {
             await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
