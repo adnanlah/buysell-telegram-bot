@@ -1,7 +1,7 @@
-import { Bot, Context, session, SessionFlavor } from "grammy"
+import { Api, Bot, Context, session, SessionFlavor, GrammyError, HttpError } from "grammy"
 import { sequentialize } from "@grammyjs/runner"
-import { GrammyError, HttpError } from "grammy"
-import { processRules } from "./helpers"
+import { hydrate, hydrateApi, HydrateApiFlavor, HydrateFlavor } from "@grammyjs/hydrate"
+import { validateUserMessage } from "./helpers"
 import { noticeGenerator, noticeGeneratorNotImportant, pleaseJoin } from "./dialog"
 
 // Define the shape of our session.
@@ -10,7 +10,8 @@ interface SessionData {
 }
 
 // Flavor the context type to include sessions.
-type MyContext = Context & SessionFlavor<SessionData>
+type MyContext = HydrateFlavor<Context> & SessionFlavor<SessionData>
+type MyApi = HydrateApiFlavor<Api>
 
 // Install session middleware, and define the initial session value.
 function initial(): SessionData {
@@ -23,7 +24,8 @@ function getSessionKey(ctx: Context) {
 }
 
 if (process.env.BOT_TOKEN == null) throw Error("BOT_TOKEN is missing.")
-export const bot = new Bot<MyContext>(`${process.env.BOT_TOKEN}`, {
+
+export const bot = new Bot<MyContext, MyApi>(`${process.env.BOT_TOKEN}`, {
   botInfo: {
     id: 5556548689,
     is_bot: true,
@@ -47,12 +49,12 @@ bot.on("message:text").filter(
   async (ctx) => {
     try {
       const validMessagesCount = ctx.session.validMessagesCount
-      console.log({ validMessagesCount })
+      console.log({ chatId: ctx.chat.id, validMessagesCount })
 
       const text: string = ctx.message.text
       const isOrphan: boolean = ctx.message.reply_to_message === undefined
 
-      const { rulesBrokenFiltered, notImportantRulesBrokenFiltered } = processRules(
+      const { rulesBrokenFiltered, notImportantRulesBrokenFiltered } = validateUserMessage(
         isOrphan,
         text,
         ctx.from.username
@@ -69,13 +71,13 @@ bot.on("message:text").filter(
           disable_web_page_preview: true
         })
 
-        const delay = 4 + rulesBrokenFiltered.length * 3000
+        const delay = 4000 + rulesBrokenFiltered.length * 3000
 
-        if (validMessagesCount < 20) {
+        if (validMessagesCount < 2) {
           setTimeout(async () => {
             try {
               await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
-              await bot.api.deleteMessage(ctx.msg.chat.id, botReplyMessage.message_id)
+              await botReplyMessage.delete()
             } catch (err: any) {
               console.log("Oops! Error happened trying to delete messages.", err.message)
             }
@@ -85,15 +87,10 @@ bot.on("message:text").filter(
           setTimeout(async () => {
             try {
               await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
-              await bot.api.editMessageText(
-                ctx.msg.chat.id,
-                botReplyMessage.message_id,
-                pleaseJoin,
-                {
-                  parse_mode: "HTML",
-                  disable_web_page_preview: true
-                }
-              )
+              await botReplyMessage.editText(pleaseJoin, {
+                parse_mode: "HTML",
+                disable_web_page_preview: true
+              })
             } catch (err: any) {
               console.log("Oops! Error happened trying to delete messages.", err.message)
             }
@@ -131,5 +128,8 @@ bot.catch((err) => {
     console.error("Unknown error:", e)
   }
 })
+
+bot.use(hydrate())
+bot.api.config.use(hydrateApi())
 
 export default bot

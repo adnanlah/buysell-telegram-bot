@@ -46,7 +46,7 @@ export const checkText = (text: string): Record<string, boolean> => {
   }
 }
 
-export const processRules = (
+export const validateUserMessage = (
   isOrphan: boolean,
   text: string,
   username: string | undefined
