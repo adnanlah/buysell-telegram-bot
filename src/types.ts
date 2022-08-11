@@ -8,6 +8,6 @@ export interface rulesType {
   username: ruleType
   format: ruleType
   askTrust: ruleType
-  reserve: ruleType
-  consistent: ruleType
+  askReserve: ruleType
+  correctEmoji: ruleType
 }

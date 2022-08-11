@@ -3,17 +3,18 @@ import { sequentialize } from "@grammyjs/runner"
 import { GrammyError, HttpError } from "grammy"
 import { processRules } from "./helpers"
 import { noticeGenerator, noticeGeneratorNotImportant, pleaseJoin } from "./dialog"
-import { ruleType } from "./types"
 
+// Define the shape of our session.
 interface SessionData {
-  acceptedMessages: number
+  validMessagesCount: number
 }
 
+// Flavor the context type to include sessions.
 type MyContext = Context & SessionFlavor<SessionData>
 
 // Install session middleware, and define the initial session value.
 function initial(): SessionData {
-  return { acceptedMessages: 0 }
+  return { validMessagesCount: 0 }
 }
 
 // Build a unique identifier for the `Context` object.
@@ -28,7 +29,7 @@ export const bot = new Bot<MyContext>(`${process.env.BOT_TOKEN}`, {
     is_bot: true,
     first_name: "BuySell Monitor",
     username: "buyselldz_bot",
-    can_join_groups: true,
+    can_join_groups: false,
     can_read_all_group_messages: false,
     supports_inline_queries: false
   }
@@ -38,74 +39,28 @@ export const bot = new Bot<MyContext>(`${process.env.BOT_TOKEN}`, {
 bot.use(sequentialize(getSessionKey))
 bot.use(session({ initial }))
 
-bot.on("message:text", async (ctx) => {
-  try {
-    const count = ctx.session.acceptedMessages
-    console.log({ count })
-
-    const text: string = ctx.message.text
-    const isOrphan: boolean = ctx.message.reply_to_message === undefined
-
+bot.on("message:text").filter(
+  async (ctx) => {
     const user = await ctx.getAuthor()
+    return !ctx.from?.is_bot && ctx.senderChat?.id !== ctx.chat.id && user.status !== "creator"
+  },
+  async (ctx) => {
+    try {
+      const validMessagesCount = ctx.session.validMessagesCount
+      console.log({ validMessagesCount })
 
-    if (
-      ctx.from?.is_bot ||
-      ctx.from?.username === "GroupAnonymousBot" ||
-      user?.status === "creator"
-    ) {
-      return
-    }
+      const text: string = ctx.message.text
+      const isOrphan: boolean = ctx.message.reply_to_message === undefined
 
-    const rulesBroken = processRules(isOrphan, text, ctx.from.username)
-
-    const rulesBrokenFiltered: ruleType[] = Object.values(rulesBroken).filter(
-      (rule) => rule.value === true && rule.important === true
-    )
-
-    if (rulesBrokenFiltered.length > 0) {
-      const botReplyContent = noticeGenerator(rulesBrokenFiltered)
-      const botReplyMessage = await ctx.reply(botReplyContent, {
-        reply_to_message_id: ctx.msg.message_id,
-        parse_mode: "HTML",
-        disable_notification: true,
-        allow_sending_without_reply: false,
-        protect_content: true,
-        disable_web_page_preview: true
-      })
-
-      const delay = 3500 + rulesBrokenFiltered.length * 2500
-
-      if (count < 15) {
-        setTimeout(async () => {
-          try {
-            await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
-            await bot.api.deleteMessage(ctx.msg.chat.id, botReplyMessage.message_id)
-          } catch (err: any) {
-            console.log("Oops! Error happened trying to delete messages.", err.message)
-          }
-        }, delay)
-      } else {
-        ctx.session.acceptedMessages = 0
-        setTimeout(async () => {
-          try {
-            await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
-            await bot.api.editMessageText(ctx.msg.chat.id, botReplyMessage.message_id, pleaseJoin, {
-              parse_mode: "HTML",
-              disable_web_page_preview: true
-            })
-          } catch (err: any) {
-            console.log("Oops! Error happened trying to delete messages.", err.message)
-          }
-        }, delay)
-      }
-    } else {
-      ctx.session.acceptedMessages++
-      const notImportantRulesBrokenFiltered: ruleType[] = Object.values(rulesBroken).filter(
-        (rule) => rule.value === true && rule.important === false
+      const { rulesBrokenFiltered, notImportantRulesBrokenFiltered } = processRules(
+        isOrphan,
+        text,
+        ctx.from.username
       )
-      if (notImportantRulesBrokenFiltered.length > 0) {
-        const botReplyContent = noticeGeneratorNotImportant(notImportantRulesBrokenFiltered)
-        await ctx.reply(botReplyContent, {
+
+      if (rulesBrokenFiltered.length > 0) {
+        const botReplyContent = noticeGenerator(rulesBrokenFiltered)
+        const botReplyMessage = await ctx.reply(botReplyContent, {
           reply_to_message_id: ctx.msg.message_id,
           parse_mode: "HTML",
           disable_notification: true,
@@ -113,12 +68,56 @@ bot.on("message:text", async (ctx) => {
           protect_content: true,
           disable_web_page_preview: true
         })
+
+        const delay = 4 + rulesBrokenFiltered.length * 3000
+
+        if (validMessagesCount < 20) {
+          setTimeout(async () => {
+            try {
+              await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
+              await bot.api.deleteMessage(ctx.msg.chat.id, botReplyMessage.message_id)
+            } catch (err: any) {
+              console.log("Oops! Error happened trying to delete messages.", err.message)
+            }
+          }, delay)
+        } else {
+          ctx.session.validMessagesCount = 0
+          setTimeout(async () => {
+            try {
+              await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
+              await bot.api.editMessageText(
+                ctx.msg.chat.id,
+                botReplyMessage.message_id,
+                pleaseJoin,
+                {
+                  parse_mode: "HTML",
+                  disable_web_page_preview: true
+                }
+              )
+            } catch (err: any) {
+              console.log("Oops! Error happened trying to delete messages.", err.message)
+            }
+          }, delay)
+        }
+      } else {
+        ctx.session.validMessagesCount++
+        if (notImportantRulesBrokenFiltered.length > 0) {
+          const botReplyContent = noticeGeneratorNotImportant(notImportantRulesBrokenFiltered)
+          await ctx.reply(botReplyContent, {
+            reply_to_message_id: ctx.msg.message_id,
+            parse_mode: "HTML",
+            disable_notification: true,
+            allow_sending_without_reply: false,
+            protect_content: true,
+            disable_web_page_preview: true
+          })
+        }
       }
+    } catch (err: any) {
+      throw new Error(err)
     }
-  } catch (err: any) {
-    throw new Error(err)
   }
-})
+)
 
 bot.catch((err) => {
   const ctx = err.ctx
