@@ -5,7 +5,7 @@ export const sleep = (time: number) => new Promise((res) => setTimeout(res, time
 
 const checkFormat = (text: string): boolean => {
   return (
-    text.includes("عملة") &&
+    (text.includes("عملة") || text.includes("محفظة")) &&
     text.includes("كمية") &&
     text.includes("سعر") &&
     text.includes("دفع") &&

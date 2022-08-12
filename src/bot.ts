@@ -4,6 +4,8 @@ import { hydrate, hydrateApi, HydrateApiFlavor, HydrateFlavor } from "@grammyjs/
 import { validateUserMessage } from "./helpers"
 import { noticeGenerator, noticeGeneratorNotImportant, pleaseJoin } from "./dialog"
 
+const isProduction = (): boolean => process.env.NODE_ENV === "production"
+
 // Define the shape of our session.
 interface SessionData {
   validMessagesCount: number
@@ -49,6 +51,8 @@ bot.on("message:text").filter(
   async (ctx) => {
     try {
       const validMessagesCount = ctx.session.validMessagesCount
+      console.log("isProduction: ", isProduction)
+      console.log("process.env.NODE_ENV: ", process.env.NODE_ENV)
       console.log({ chatId: ctx.chat.id, validMessagesCount })
 
       const text: string = ctx.message.text
@@ -71,9 +75,9 @@ bot.on("message:text").filter(
           disable_web_page_preview: true
         })
 
-        const delay = 4000 + rulesBrokenFiltered.length * 3000
+        const delay = 4500 + rulesBrokenFiltered.length * 3000
 
-        if (validMessagesCount < 2) {
+        if (validMessagesCount < 20) {
           setTimeout(async () => {
             try {
               await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
@@ -113,6 +117,16 @@ bot.on("message:text").filter(
     } catch (err: any) {
       throw new Error(err)
     }
+  }
+)
+
+bot.on("message:photo").filter(
+  async (ctx) => {
+    const user = await ctx.getAuthor()
+    return !ctx.from?.is_bot && ctx.senderChat?.id !== ctx.chat.id && user.status !== "creator"
+  },
+  async (ctx) => {
+    console.log("got a picture")
   }
 )
 

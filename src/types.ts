@@ -11,3 +11,24 @@ export interface rulesType {
   askReserve: ruleType
   correctEmoji: ruleType
 }
+
+export interface generatedMessage {
+  update_id: number
+  message: {
+    date: number
+    chat: {
+      last_name: string
+      id: number
+      first_name: string
+      username: string
+    }
+    message_id: number
+    from: {
+      last_name: string
+      id: number
+      first_name: string
+      username: string
+    }
+    text: string
+  }
+}
