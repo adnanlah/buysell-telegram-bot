@@ -1,4 +1,14 @@
-import { Api, Bot, Context, session, SessionFlavor, GrammyError, HttpError } from "grammy"
+import {
+  Api,
+  Bot,
+  Context,
+  session,
+  SessionFlavor,
+  GrammyError,
+  HttpError,
+  Filter,
+  matchFilter
+} from "grammy"
 import { sequentialize } from "@grammyjs/runner"
 import { hydrate, hydrateApi, HydrateApiFlavor, HydrateFlavor } from "@grammyjs/hydrate"
 import { validateUserMessage } from "./helpers"
@@ -43,30 +53,54 @@ export const bot = new Bot<MyContext, MyApi>(`${process.env.BOT_TOKEN}`, {
 bot.use(sequentialize(getSessionKey))
 bot.use(session({ initial }))
 
-bot.on("message:text").filter(
-  async (ctx) => {
-    const user = await ctx.getAuthor()
-    return !ctx.from?.is_bot && ctx.senderChat?.id !== ctx.chat.id && user.status !== "creator"
-  },
-  async (ctx) => {
-    try {
-      const validMessagesCount = ctx.session.validMessagesCount
-      console.log("isProduction: ", isProduction)
-      console.log("process.env.NODE_ENV: ", process.env.NODE_ENV)
-      console.log({ chatId: ctx.chat.id, validMessagesCount })
+const handler = async (ctx: Filter<MyContext, "msg">) => {
+  try {
+    const validMessagesCount = ctx.session.validMessagesCount
+    console.log({ chatId: ctx.chat.id, validMessagesCount })
 
-      const text: string = ctx.message.text
-      const isOrphan: boolean = ctx.message.reply_to_message === undefined
+    const { importantRulesBroken, notImportantRulesBroken } = validateUserMessage(ctx.msg)
 
-      const { rulesBrokenFiltered, notImportantRulesBrokenFiltered } = validateUserMessage(
-        isOrphan,
-        text,
-        ctx.from.username
-      )
+    if (importantRulesBroken.length > 0) {
+      const botReplyContent = noticeGenerator(importantRulesBroken)
+      const botReplyMessage = await ctx.reply(botReplyContent, {
+        reply_to_message_id: ctx.msg.message_id,
+        parse_mode: "HTML",
+        disable_notification: true,
+        allow_sending_without_reply: false,
+        protect_content: true,
+        disable_web_page_preview: true
+      })
 
-      if (rulesBrokenFiltered.length > 0) {
-        const botReplyContent = noticeGenerator(rulesBrokenFiltered)
-        const botReplyMessage = await ctx.reply(botReplyContent, {
+      const delay = 4500 + importantRulesBroken.length * 3000
+
+      if (validMessagesCount < (isProduction() ? 20 : 2)) {
+        setTimeout(async () => {
+          try {
+            await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
+            await botReplyMessage.delete()
+          } catch (err: any) {
+            console.log("Oops! Error happened trying to delete messages.", err.message)
+          }
+        }, delay)
+      } else {
+        ctx.session.validMessagesCount = 0
+        setTimeout(async () => {
+          try {
+            await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
+            await botReplyMessage.editText(pleaseJoin, {
+              parse_mode: "HTML",
+              disable_web_page_preview: true
+            })
+          } catch (err: any) {
+            console.log("Oops! Error happened trying to delete messages.", err.message)
+          }
+        }, delay)
+      }
+    } else {
+      ctx.session.validMessagesCount++
+      if (notImportantRulesBroken.length > 0) {
+        const botReplyContent = noticeGeneratorNotImportant(notImportantRulesBroken)
+        await ctx.reply(botReplyContent, {
           reply_to_message_id: ctx.msg.message_id,
           parse_mode: "HTML",
           disable_notification: true,
@@ -74,61 +108,29 @@ bot.on("message:text").filter(
           protect_content: true,
           disable_web_page_preview: true
         })
-
-        const delay = 4500 + rulesBrokenFiltered.length * 3000
-
-        if (validMessagesCount < 20) {
-          setTimeout(async () => {
-            try {
-              await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
-              await botReplyMessage.delete()
-            } catch (err: any) {
-              console.log("Oops! Error happened trying to delete messages.", err.message)
-            }
-          }, delay)
-        } else {
-          ctx.session.validMessagesCount = 0
-          setTimeout(async () => {
-            try {
-              await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
-              await botReplyMessage.editText(pleaseJoin, {
-                parse_mode: "HTML",
-                disable_web_page_preview: true
-              })
-            } catch (err: any) {
-              console.log("Oops! Error happened trying to delete messages.", err.message)
-            }
-          }, delay)
-        }
-      } else {
-        ctx.session.validMessagesCount++
-        if (notImportantRulesBrokenFiltered.length > 0) {
-          const botReplyContent = noticeGeneratorNotImportant(notImportantRulesBrokenFiltered)
-          await ctx.reply(botReplyContent, {
-            reply_to_message_id: ctx.msg.message_id,
-            parse_mode: "HTML",
-            disable_notification: true,
-            allow_sending_without_reply: false,
-            protect_content: true,
-            disable_web_page_preview: true
-          })
-        }
       }
-    } catch (err: any) {
-      throw new Error(err)
     }
+  } catch (err: any) {
+    throw new Error(err)
   }
-)
+}
 
-bot.on("message:photo").filter(
-  async (ctx) => {
+bot.on("msg:text").filter(async (ctx) => {
+  const user = await ctx.getAuthor()
+  return !ctx.from?.is_bot && ctx.senderChat?.id !== ctx.chat.id && user.status !== "creator"
+}, handler)
+
+bot
+  .on("msg")
+  .drop(matchFilter(":text"))
+  .filter(async (ctx) => {
     const user = await ctx.getAuthor()
-    return !ctx.from?.is_bot && ctx.senderChat?.id !== ctx.chat.id && user.status !== "creator"
-  },
-  async (ctx) => {
-    console.log("got a picture")
-  }
-)
+    return (
+      ctx.senderChat?.id !== ctx.chat.id &&
+      user.status !== "creator" &&
+      user.status !== "administrator"
+    )
+  }, handler)
 
 bot.catch((err) => {
   const ctx = err.ctx

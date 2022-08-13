@@ -10,6 +10,7 @@ export interface rulesType {
   askTrust: ruleType
   askReserve: ruleType
   correctEmoji: ruleType
+  noMedia: ruleType
 }
 
 export interface generatedMessage {

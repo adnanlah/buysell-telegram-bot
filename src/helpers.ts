@@ -1,4 +1,11 @@
-import { askTrustRule, correctEmojiRule, formatRule, askReserveRule, usernameRule } from "./dialog"
+import {
+  askTrustRule,
+  correctEmojiRule,
+  formatRule,
+  askReserveRule,
+  usernameRule,
+  noMediaRule
+} from "./dialog"
 import { rulesType, ruleType } from "./types"
 
 export const sleep = (time: number) => new Promise((res) => setTimeout(res, time, "done sleeping"))
@@ -46,52 +53,62 @@ export const checkText = (text: string): Record<string, boolean> => {
   }
 }
 
-export const validateUserMessage = (
-  isOrphan: boolean,
-  text: string,
-  username: string | undefined
-): {
-  rulesBrokenFiltered: ruleType[]
-  notImportantRulesBrokenFiltered: ruleType[]
-} => {
-  const rulesBroken: rulesType = {
+export const getRulesObject = (): rulesType => {
+  return {
     username: { value: false, content: usernameRule, important: true },
     askTrust: { value: false, content: askTrustRule, important: true },
     askReserve: { value: false, content: askReserveRule, important: true },
     format: { value: false, content: formatRule, important: true },
-    correctEmoji: { value: false, content: correctEmojiRule, important: false }
+    correctEmoji: { value: false, content: correctEmojiRule, important: false },
+    noMedia: { value: false, content: noMediaRule, important: true }
+  }
+}
+
+export const validateUserMessage = (
+  msg: any
+): {
+  importantRulesBroken: ruleType[]
+  notImportantRulesBroken: ruleType[]
+} => {
+  const rulesObject = getRulesObject()
+  const isOrphan = msg.reply_to_message === undefined
+  const { first_name, last_name, username } = msg.from
+
+  if (msg.text) {
+    const { isCorrectFormat, itDoesIncludeTrust, itDoesIncludeReserve, isEmojisWrong } = checkText(
+      msg.text
+    )
+
+    if (username === undefined || (!first_name.trim() && !last_name.trim())) {
+      rulesObject["username"].value = true
+    }
+
+    if (isOrphan && !isCorrectFormat && itDoesIncludeReserve) {
+      rulesObject["askReserve"].value = true
+    }
+
+    if (isOrphan && !isCorrectFormat) {
+      rulesObject["format"].value = true
+    }
+
+    if (itDoesIncludeTrust && !itDoesIncludeReserve && !isCorrectFormat) {
+      rulesObject["askTrust"].value = true
+    }
+
+    if (isOrphan && isCorrectFormat && isEmojisWrong) {
+      rulesObject["correctEmoji"].value = true
+    }
+  } else {
+    rulesObject["noMedia"].value = true
   }
 
-  const { isCorrectFormat, itDoesIncludeTrust, itDoesIncludeReserve, isEmojisWrong } =
-    checkText(text)
-
-  if (username === undefined) {
-    rulesBroken["username"].value = true
-  }
-
-  if (isOrphan && !isCorrectFormat && itDoesIncludeReserve) {
-    rulesBroken["askReserve"].value = true
-  }
-
-  if (isOrphan && !isCorrectFormat) {
-    rulesBroken["format"].value = true
-  }
-
-  if (itDoesIncludeTrust && !itDoesIncludeReserve && !isCorrectFormat) {
-    rulesBroken["askTrust"].value = true
-  }
-
-  if (isOrphan && isCorrectFormat && isEmojisWrong) {
-    rulesBroken["correctEmoji"].value = true
-  }
-
-  const rulesBrokenFiltered: ruleType[] = Object.values(rulesBroken).filter(
+  const importantRulesBroken: ruleType[] = Object.values(rulesObject).filter(
     (rule) => rule.value === true && rule.important === true
   )
 
-  const notImportantRulesBrokenFiltered: ruleType[] = Object.values(rulesBroken).filter(
+  const notImportantRulesBroken: ruleType[] = Object.values(rulesObject).filter(
     (rule) => rule.value === true && rule.important === false
   )
 
-  return { rulesBrokenFiltered, notImportantRulesBrokenFiltered }
+  return { importantRulesBroken, notImportantRulesBroken }
 }
