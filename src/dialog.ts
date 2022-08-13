@@ -1,4 +1,4 @@
-import { rulesType, ruleType } from "./types"
+import { ruleType } from "./types"
 
 export const secondGroupLink = `https://t.me/+1dS6r91r0hYzZWZk`
 
