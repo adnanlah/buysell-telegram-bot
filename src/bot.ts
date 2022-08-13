@@ -13,8 +13,7 @@ import { sequentialize } from "@grammyjs/runner"
 import { hydrate, hydrateApi, HydrateApiFlavor, HydrateFlavor } from "@grammyjs/hydrate"
 import { validateUserMessage } from "./helpers"
 import { noticeGenerator, noticeGeneratorNotImportant, pleaseJoin } from "./dialog"
-
-const isProduction = (): boolean => process.env.NODE_ENV === "production"
+import { BOT_TOKEN, ADDITIONAL_DELAY, INITIAL_DELAY, MESSAGES_COUNT_LIMIT } from "./init"
 
 // Define the shape of our session.
 interface SessionData {
@@ -35,9 +34,9 @@ function getSessionKey(ctx: Context) {
   return ctx.chat?.id.toString()
 }
 
-if (process.env.BOT_TOKEN == null) throw Error("BOT_TOKEN is missing.")
+if (BOT_TOKEN == null || BOT_TOKEN == "") throw Error("BOT_TOKEN is missing.")
 
-export const bot = new Bot<MyContext, MyApi>(`${process.env.BOT_TOKEN}`, {
+export const bot = new Bot<MyContext, MyApi>(`${BOT_TOKEN}`, {
   botInfo: {
     id: 5556548689,
     is_bot: true,
@@ -71,9 +70,9 @@ const handler = async (ctx: Filter<MyContext, "msg">) => {
         disable_web_page_preview: true
       })
 
-      const delay = 4500 + importantRulesBroken.length * 3000
+      const delay = INITIAL_DELAY + importantRulesBroken.length * ADDITIONAL_DELAY
 
-      if (validMessagesCount < (isProduction() ? 20 : 2)) {
+      if (validMessagesCount < MESSAGES_COUNT_LIMIT) {
         setTimeout(async () => {
           try {
             await bot.api.deleteMessage(ctx.msg.chat.id, ctx.msg.message_id)
@@ -122,7 +121,7 @@ bot.on("msg:text").filter(async (ctx) => {
 
 bot
   .on("msg")
-  .drop(matchFilter(":text"))
+  .drop(matchFilter("msg:text"))
   .filter(async (ctx) => {
     const user = await ctx.getAuthor()
     return (
