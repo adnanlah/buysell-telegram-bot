@@ -119,17 +119,14 @@ bot.on("msg:text").filter(async (ctx) => {
   return !ctx.from?.is_bot && ctx.senderChat?.id !== ctx.chat.id && user.status !== "creator"
 }, handler)
 
-bot
-  .on("msg")
-  .drop(matchFilter("msg:text"))
-  .filter(async (ctx) => {
-    const user = await ctx.getAuthor()
-    return (
-      ctx.senderChat?.id !== ctx.chat.id &&
-      user.status !== "creator" &&
-      user.status !== "administrator"
-    )
-  }, handler)
+bot.on(["msg:voice", "msg:file", "msg:media", "msg:sticker"]).filter(async (ctx) => {
+  const user = await ctx.getAuthor()
+  return (
+    ctx.senderChat?.id !== ctx.chat.id &&
+    user.status !== "creator" &&
+    user.status !== "administrator"
+  )
+}, handler)
 
 bot.catch((err) => {
   const ctx = err.ctx
