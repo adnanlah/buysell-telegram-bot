@@ -76,9 +76,9 @@ export const validateUserMessage = (
 
   if (msg.text) {
     const { isCorrectFormat, itDoesIncludeTrust, itDoesIncludeReserve, isEmojisWrong } = checkText(
-      msg.text
+      msg.text.trim()
     )
-    const isShort = msg.text.length < 60
+    const isShort = msg.text.trim().length < 60
 
     if (username === undefined || (!first_name.trim() && !last_name.trim())) {
       rulesObject["username"].value = true
