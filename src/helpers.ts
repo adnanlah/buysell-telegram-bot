@@ -78,6 +78,7 @@ export const validateUserMessage = (
     const { isCorrectFormat, itDoesIncludeTrust, itDoesIncludeReserve, isEmojisWrong } = checkText(
       msg.text
     )
+    const isShort = msg.text.length < 60
 
     if (username === undefined || (!first_name.trim() && !last_name.trim())) {
       rulesObject["username"].value = true
@@ -89,6 +90,11 @@ export const validateUserMessage = (
 
     if (isOrphan && !isCorrectFormat) {
       rulesObject["format"].value = true
+    }
+    
+    if (isOrphan && !isCorrectFormat && isShort) {
+      rulesObject["format"].value = true
+      rulesObject["askReserve"].value = true
     }
 
     if (itDoesIncludeTrust && !itDoesIncludeReserve && !isCorrectFormat) {
