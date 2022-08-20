@@ -36,7 +36,12 @@ const checkReserveWords = (text: string): boolean => {
 }
 
 const checkTrustWords = (text: string): boolean => {
-  return text.includes("توثيق") || text.includes("يوثق") || text.includes("وثق")
+  return (
+    text.includes("توثيق") ||
+    text.includes("يوثق") ||
+    text.includes("وثق") ||
+    text.includes("confiance")
+  )
 }
 
 const checkEmojis = (text: string): boolean => {
@@ -95,11 +100,6 @@ export const validateUserMessage = (
 
     if (isOrphan && !isCorrectFormat) {
       rulesObject["format"].value = true
-    }
-
-    if (isOrphan && !isCorrectFormat) {
-      rulesObject["format"].value = true
-      rulesObject["askReserve"].value = true
     }
 
     if (itDoesIncludeTrust && !itDoesIncludeReserve && !isCorrectFormat) {
