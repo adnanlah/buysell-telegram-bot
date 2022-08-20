@@ -1,12 +1,11 @@
+import { GROUP_LINK } from "./init"
 import { ruleType } from "./types"
 
-export const secondGroupLink = `https://t.me/+1dS6r91r0hYzZWZk`
-
-export const pleaseJoin = `<i>📢 لأي استفسارات انظم لمجموعة التوثيق والنقاشات: ${secondGroupLink}</i>`
+export const pleaseJoin = `<i>📢 لأي استفسارات انظم لمجموعة التوثيق والنقاشات: ${GROUP_LINK}</i>`
 
 export const usernameRule = `وضع الاسم واللقب واليوزرنيم (المعرف).`
 
-export const askTrustRule = `التوثيقات تكون في مجموعة التوثيق والنقاشات: ${secondGroupLink}`
+export const askTrustRule = `التوثيقات تكون في مجموعة التوثيق والنقاشات: ${GROUP_LINK}`
 
 export const askReserveRule = `يجب أن يكون الحجز ردًا على العرض نفسه.`
 

@@ -24,6 +24,11 @@ const checkReserveWords = (text: string): boolean => {
   return (
     text.includes("حجز") ||
     text.includes("محجوز") ||
+    text.includes("بريفي") ||
+    text.includes("خاص") ||
+    text.includes("prv") ||
+    text.includes("prive") ||
+    text.includes("privé") ||
     text.toUpperCase().includes("HJZ") ||
     text.toUpperCase().includes("HJAZ") ||
     text.toUpperCase().includes("HAZJ")
@@ -91,8 +96,8 @@ export const validateUserMessage = (
     if (isOrphan && !isCorrectFormat) {
       rulesObject["format"].value = true
     }
-    
-    if (isOrphan && !isCorrectFormat && isShort) {
+
+    if (isOrphan && !isCorrectFormat) {
       rulesObject["format"].value = true
       rulesObject["askReserve"].value = true
     }
