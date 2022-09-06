@@ -4,7 +4,8 @@ import {
   formatRule,
   askReserveRule,
   usernameRule,
-  noMediaRule
+  noMediaRule,
+  fullnameRule
 } from "./dialog"
 import { rulesType, ruleType } from "./types"
 
@@ -69,6 +70,7 @@ export const checkText = (text: string): Record<string, boolean> => {
 export const getRulesObject = (): rulesType => {
   return {
     username: { value: false, content: usernameRule, important: true },
+    fullname: { value: false, content: fullnameRule, important: true },
     askTrust: { value: false, content: askTrustRule, important: true },
     askReserve: { value: false, content: askReserveRule, important: true },
     format: { value: false, content: formatRule, important: true },
@@ -91,10 +93,13 @@ export const validateUserMessage = (
     const { isCorrectFormat, itDoesIncludeTrust, itDoesIncludeReserve, isEmojisWrong } = checkText(
       msg.text.trim()
     )
-    const isShort = msg.text.trim().length < 60
 
-    if (username === undefined || (!first_name.trim() && !last_name.trim())) {
+    if (username === undefined) {
       rulesObject["username"].value = true
+    }
+
+    if (first_name.length + last_name.length < 3) {
+      rulesObject["fullname"].value = true
     }
 
     if (isOrphan && !isCorrectFormat && itDoesIncludeReserve) {

@@ -7,7 +7,6 @@ import {
   GrammyError,
   HttpError,
   Filter,
-  matchFilter
 } from "grammy"
 import { sequentialize } from "@grammyjs/runner"
 import { hydrate, hydrateApi, HydrateApiFlavor, HydrateFlavor } from "@grammyjs/hydrate"

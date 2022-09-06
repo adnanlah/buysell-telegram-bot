@@ -6,6 +6,7 @@ export interface ruleType {
 
 export interface rulesType {
   username: ruleType
+  fullname: ruleType
   format: ruleType
   askTrust: ruleType
   askReserve: ruleType
