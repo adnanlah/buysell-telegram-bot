@@ -18,7 +18,7 @@ export const correctEmojiRule = `🟢 شراء أو 🔴 بيع؟ 🤔😅`
 export const formatRule = `اتبع نموذج البيع والشراء.`
 
 export const noticeGenerator = (rulesBroken: ruleType[]): string => {
-  return `من فضلك احترم القوانين التالية:
+  return `من فضلك احترم قوانين المجموعة:
 
 ${rulesBroken.map((rule) => `❌ ` + rule.content).join("\n\n")}`
 }
