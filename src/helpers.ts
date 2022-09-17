@@ -88,6 +88,8 @@ export const validateUserMessage = (
   const rulesObject = getRulesObject()
   const isOrphan = msg.reply_to_message === undefined
   const { first_name, last_name, username } = msg.from
+  const first_nameLength = first_name ? first_name.length : 0
+  const last_nameLength = last_name ? last_name.length : 0
 
   if (msg.text) {
     const { isCorrectFormat, itDoesIncludeTrust, itDoesIncludeReserve, isEmojisWrong } = checkText(
@@ -98,7 +100,7 @@ export const validateUserMessage = (
       rulesObject["username"].value = true
     }
 
-    if (first_name.length + last_name.length < 3) {
+    if (first_nameLength + last_nameLength < 3) {
       rulesObject["fullname"].value = true
     }
 
